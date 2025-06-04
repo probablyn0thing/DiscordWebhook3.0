@@ -1,1 +1,1 @@
-{"root":["../index.ts","../api/health.ts","../api/start.ts","../src/bot.ts","../src/logger.ts","../src/serverless.ts","../src/types.ts","../src/webhook.ts"],"version":"5.8.3"}
+{"root":["../index.ts","../api/health.ts","../api/start.ts","../src/bot.ts","../src/channel-manager.ts","../src/logger.ts","../src/serverless.ts","../src/types.ts","../src/webhook.ts"],"version":"5.8.3"}
