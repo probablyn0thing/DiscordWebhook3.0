@@ -28,12 +28,17 @@ function validateEnvironment() {
         process.env.CHANNEL_IDS.split(',').map(id => id.trim()).filter(Boolean) : undefined;
     const guildIds = process.env.GUILD_IDS ?
         process.env.GUILD_IDS.split(',').map(id => id.trim()).filter(Boolean) : undefined;
-    return {
+    const config = {
         discordToken,
-        webhookUrl,
-        channelIds,
-        guildIds
+        webhookUrl
     };
+    if (channelIds) {
+        config.channelIds = channelIds;
+    }
+    if (guildIds) {
+        config.guildIds = guildIds;
+    }
+    return config;
 }
 // Main application function
 async function main() {

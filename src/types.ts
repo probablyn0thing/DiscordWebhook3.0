@@ -46,7 +46,7 @@ export interface DiscordMessageData {
 }
 
 export interface WebhookPayload {
-  event: 'message_create';
+  event: 'message_create' | 'message_update';
   timestamp: string;
   data: DiscordMessageData;
 }
