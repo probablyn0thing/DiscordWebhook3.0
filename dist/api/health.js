@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = handler;
+// Health check endpoint for serverless deployment
 function handler(req, res) {
-    // Health check endpoint for serverless deployment
     const response = {
         status: 'healthy',
         timestamp: new Date().toISOString(),
