@@ -1,7 +1,5 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
-
-export default function handler(req: VercelRequest, res: VercelResponse) {
-  // Health check endpoint for serverless deployment
+// Health check endpoint for serverless deployment
+export default function handler(req: any, res: any) {
   const response = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
