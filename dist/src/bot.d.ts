@@ -3,6 +3,7 @@ export declare class DiscordBot {
     private client;
     private webhookService;
     private config;
+    private channelManager;
     private reconnectAttempts;
     private maxReconnectAttempts;
     constructor(config: BotConfig);

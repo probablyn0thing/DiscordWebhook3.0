@@ -4,6 +4,7 @@ exports.DiscordBot = void 0;
 const discord_js_1 = require("discord.js");
 const webhook_1 = require("./webhook");
 const logger_1 = require("./logger");
+const channel_manager_1 = require("./channel-manager");
 class DiscordBot {
     constructor(config) {
         this.reconnectAttempts = 0;
@@ -19,13 +20,26 @@ class DiscordBot {
                 discord_js_1.GatewayIntentBits.DirectMessages
             ]
         });
+        this.channelManager = new channel_manager_1.ChannelManager(this.client);
         this.setupEventHandlers();
     }
     setupEventHandlers() {
         // Bot ready event
-        this.client.once('ready', () => {
+        this.client.once('ready', async () => {
             logger_1.Logger.info(`Discord bot logged in as ${this.client.user?.tag}`);
             this.reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+            // Log monitoring configuration
+            this.channelManager.logMonitoringConfig(this.config.channelIds, this.config.guildIds);
+            // Validate configured channels if any
+            if (this.config.channelIds && this.config.channelIds.length > 0) {
+                const validation = await this.channelManager.validateChannelIds(this.config.channelIds);
+                if (validation.invalid.length > 0) {
+                    logger_1.Logger.warn('Some configured channels are invalid or inaccessible', {
+                        invalid: validation.invalid,
+                        valid: validation.valid
+                    });
+                }
+            }
         });
         // Message create event
         this.client.on('messageCreate', async (message) => {
@@ -68,17 +82,28 @@ class DiscordBot {
         try {
             // Skip bot messages unless configured otherwise
             if (message.author.bot && !process.env.INCLUDE_BOT_MESSAGES) {
+                logger_1.Logger.debug('Skipping bot message', { messageId: message.id, author: message.author.username });
                 return;
             }
             // Filter by channel IDs if configured
             if (this.config.channelIds && this.config.channelIds.length > 0) {
                 if (!this.config.channelIds.includes(message.channel.id)) {
+                    logger_1.Logger.debug('Message not in monitored channels', {
+                        messageId: message.id,
+                        channelId: message.channel.id,
+                        monitoredChannels: this.config.channelIds
+                    });
                     return;
                 }
             }
             // Filter by guild IDs if configured
             if (this.config.guildIds && this.config.guildIds.length > 0) {
                 if (!message.guild || !this.config.guildIds.includes(message.guild.id)) {
+                    logger_1.Logger.debug('Message not in monitored guilds', {
+                        messageId: message.id,
+                        guildId: message.guild?.id,
+                        monitoredGuilds: this.config.guildIds
+                    });
                     return;
                 }
             }

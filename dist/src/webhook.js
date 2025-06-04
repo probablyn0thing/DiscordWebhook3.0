@@ -18,9 +18,21 @@ class WebhookService {
             try {
                 logger_1.Logger.debug(`Sending webhook attempt ${attempt}/${this.retryAttempts}`, {
                     webhookUrl: this.maskUrl(this.webhookUrl),
-                    payloadSize: JSON.stringify(payload).length
+                    payloadSize: JSON.stringify(payload).length,
+                    event: payload.event,
+                    messageId: payload.data.id
                 });
-                const response = await axios_1.default.post(this.webhookUrl, payload, {
+                // Simplify payload structure for Make.com compatibility
+                const simplifiedPayload = {
+                    ...payload.data,
+                    event_type: payload.event,
+                    webhook_timestamp: payload.timestamp
+                };
+                // Log the actual payload being sent for debugging
+                logger_1.Logger.debug('Webhook payload', {
+                    payload: JSON.stringify(simplifiedPayload, null, 2)
+                });
+                const response = await axios_1.default.post(this.webhookUrl, simplifiedPayload, {
                     headers: {
                         'Content-Type': 'application/json',
                         'User-Agent': 'Discord-Bot-Webhook/1.0'
