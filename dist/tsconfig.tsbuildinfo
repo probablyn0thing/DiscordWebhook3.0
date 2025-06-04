@@ -1,1 +1,1 @@
-{"root":["../index.ts","../src/bot.ts","../src/logger.ts","../src/types.ts","../src/webhook.ts"],"errors":true,"version":"5.8.3"}
+{"root":["../index.ts","../api/health.ts","../src/bot.ts","../src/logger.ts","../src/types.ts","../src/webhook.ts"],"errors":true,"version":"5.8.3"}
