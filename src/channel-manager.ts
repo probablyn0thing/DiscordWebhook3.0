@@ -65,21 +65,53 @@ export class ChannelManager {
     });
   }
 
-  logMonitoringConfig(channelIds?: string[], guildIds?: string[]): void {
-    if (channelIds && channelIds.length > 0) {
-      Logger.info('Channel monitoring configured', { 
-        mode: 'specific channels',
-        channelCount: channelIds.length,
-        channels: channelIds
-      });
-    } else if (guildIds && guildIds.length > 0) {
-      Logger.info('Guild monitoring configured', { 
-        mode: 'specific guilds',
-        guildCount: guildIds.length,
-        guilds: guildIds
-      });
-    } else {
-      Logger.info('Monitoring all accessible channels', { mode: 'all channels' });
+  async listTicketChannels(): Promise<{ guild: string; channels: Array<{ id: string; name: string }> }[]> {
+    const result: { guild: string; channels: Array<{ id: string; name: string }> }[] = [];
+    
+    for (const guild of this.client.guilds.cache.values()) {
+      const ticketChannels = guild.channels.cache
+        .filter(channel => channel.isTextBased() && channel.name.toLowerCase().includes('ticket'))
+        .map(channel => ({
+          id: channel.id,
+          name: channel.name
+        }));
+      
+      if (ticketChannels.length > 0) {
+        result.push({
+          guild: `${guild.name} (${guild.id})`,
+          channels: ticketChannels
+        });
+      }
     }
+    
+    return result;
+  }
+
+  logMonitoringConfig(channelIds?: string[], guildIds?: string[], ticketChannelCount?: number): void {
+    let monitoringInfo = '';
+    
+    if (channelIds && channelIds.length > 0) {
+      monitoringInfo += `${channelIds.length} specific channels`;
+    }
+    
+    if (guildIds && guildIds.length > 0) {
+      if (monitoringInfo) monitoringInfo += ', ';
+      monitoringInfo += `${guildIds.length} specific guilds`;
+    }
+    
+    if (ticketChannelCount && ticketChannelCount > 0) {
+      if (monitoringInfo) monitoringInfo += ', ';
+      monitoringInfo += `${ticketChannelCount} ticket channels (auto-detected)`;
+    }
+    
+    if (!monitoringInfo) {
+      monitoringInfo = 'all accessible channels';
+    }
+    
+    Logger.info(`Monitoring: ${monitoringInfo}`, { 
+      staticChannels: channelIds?.length || 0,
+      guilds: guildIds?.length || 0,
+      ticketChannels: ticketChannelCount || 0
+    });
   }
 }

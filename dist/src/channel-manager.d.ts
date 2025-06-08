@@ -18,6 +18,13 @@ export declare class ChannelManager {
         valid: string[];
         invalid: string[];
     }>;
-    logMonitoringConfig(channelIds?: string[], guildIds?: string[]): void;
+    listTicketChannels(): Promise<{
+        guild: string;
+        channels: Array<{
+            id: string;
+            name: string;
+        }>;
+    }[]>;
+    logMonitoringConfig(channelIds?: string[], guildIds?: string[], ticketChannelCount?: number): void;
 }
 //# sourceMappingURL=channel-manager.d.ts.map

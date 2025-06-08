@@ -14,6 +14,7 @@ export interface DiscordMessageData {
     id: string;
     name: string;
     type: number;
+    isTicketChannel?: boolean;
   };
   guild: {
     id: string;
