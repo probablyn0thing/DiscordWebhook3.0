@@ -9,6 +9,7 @@ class DiscordBot {
     constructor(config) {
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
+        this.dynamicTicketChannels = new Set();
         this.config = config;
         this.webhookService = new webhook_1.WebhookService(config.webhookUrl);
         // Initialize Discord client with necessary intents
@@ -28,8 +29,10 @@ class DiscordBot {
         this.client.once('ready', async () => {
             logger_1.Logger.info(`Discord bot logged in as ${this.client.user?.tag}`);
             this.reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+            // Scan for existing ticket channels
+            await this.scanExistingTicketChannels();
             // Log monitoring configuration
-            this.channelManager.logMonitoringConfig(this.config.channelIds, this.config.guildIds);
+            this.channelManager.logMonitoringConfig(this.config.channelIds, this.config.guildIds, this.dynamicTicketChannels.size);
             // Validate configured channels if any
             if (this.config.channelIds && this.config.channelIds.length > 0) {
                 const validation = await this.channelManager.validateChannelIds(this.config.channelIds);
@@ -71,6 +74,14 @@ class DiscordBot {
         this.client.on('rateLimit', (rateLimitData) => {
             logger_1.Logger.warn('Rate limit hit', rateLimitData);
         });
+        // Channel create event (for new ticket channels)
+        this.client.on('channelCreate', async (channel) => {
+            await this.handleChannelCreate(channel);
+        });
+        // Channel delete event (cleanup ticket channels)
+        this.client.on('channelDelete', async (channel) => {
+            await this.handleChannelDelete(channel);
+        });
         // Debug events in development
         if (process.env.NODE_ENV === 'development') {
             this.client.on('debug', (info) => {
@@ -85,16 +96,16 @@ class DiscordBot {
                 logger_1.Logger.debug('Skipping bot message', { messageId: message.id, author: message.author.username });
                 return;
             }
-            // Filter by channel IDs if configured
-            if (this.config.channelIds && this.config.channelIds.length > 0) {
-                if (!this.config.channelIds.includes(message.channel.id)) {
-                    logger_1.Logger.debug('Message not in monitored channels', {
-                        messageId: message.id,
-                        channelId: message.channel.id,
-                        monitoredChannels: this.config.channelIds
-                    });
-                    return;
-                }
+            // Check if message should be monitored
+            if (!this.shouldMonitorChannel(message.channel.id, message.guild?.id)) {
+                logger_1.Logger.debug('Message not in monitored channels', {
+                    messageId: message.id,
+                    channelId: message.channel.id,
+                    channelName: message.channel.name,
+                    monitoredChannels: this.config.channelIds,
+                    isTicketChannel: this.dynamicTicketChannels.has(message.channel.id)
+                });
+                return;
             }
             // Filter by guild IDs if configured
             if (this.config.guildIds && this.config.guildIds.length > 0) {
@@ -143,7 +154,8 @@ class DiscordBot {
             channel: {
                 id: channel.id,
                 name: channel.name || 'Unknown',
-                type: channel.type
+                type: channel.type,
+                isTicketChannel: this.dynamicTicketChannels.has(channel.id)
             },
             guild: message.guild ? {
                 id: message.guild.id,
@@ -174,6 +186,91 @@ class DiscordBot {
                 count: reaction.count
             }))
         };
+    }
+    async scanExistingTicketChannels() {
+        try {
+            logger_1.Logger.info('Scanning for existing ticket channels...');
+            let ticketChannelCount = 0;
+            for (const guild of this.client.guilds.cache.values()) {
+                // Skip if guild filtering is enabled and this guild is not in the list
+                if (this.config.guildIds && this.config.guildIds.length > 0) {
+                    if (!this.config.guildIds.includes(guild.id)) {
+                        continue;
+                    }
+                }
+                for (const channel of guild.channels.cache.values()) {
+                    if (channel.isTextBased() && this.isTicketChannel(channel.name)) {
+                        this.dynamicTicketChannels.add(channel.id);
+                        ticketChannelCount++;
+                        logger_1.Logger.debug('Found existing ticket channel', {
+                            channelId: channel.id,
+                            channelName: channel.name,
+                            guildName: guild.name
+                        });
+                    }
+                }
+            }
+            logger_1.Logger.info(`Found ${ticketChannelCount} existing ticket channels to monitor`);
+        }
+        catch (error) {
+            logger_1.Logger.error('Error scanning existing ticket channels', error);
+        }
+    }
+    async handleChannelCreate(channel) {
+        try {
+            if (!channel.isTextBased())
+                return;
+            if (this.isTicketChannel(channel.name)) {
+                // Check guild filtering
+                if (this.config.guildIds && this.config.guildIds.length > 0) {
+                    if (!channel.guild || !this.config.guildIds.includes(channel.guild.id)) {
+                        return;
+                    }
+                }
+                this.dynamicTicketChannels.add(channel.id);
+                logger_1.Logger.info('New ticket channel detected and added to monitoring', {
+                    channelId: channel.id,
+                    channelName: channel.name,
+                    guildName: channel.guild?.name || 'Unknown'
+                });
+            }
+        }
+        catch (error) {
+            logger_1.Logger.error('Error handling channel create event', error);
+        }
+    }
+    async handleChannelDelete(channel) {
+        try {
+            if (this.dynamicTicketChannels.has(channel.id)) {
+                this.dynamicTicketChannels.delete(channel.id);
+                logger_1.Logger.info('Ticket channel removed from monitoring', {
+                    channelId: channel.id,
+                    channelName: channel.name || 'Unknown'
+                });
+            }
+        }
+        catch (error) {
+            logger_1.Logger.error('Error handling channel delete event', error);
+        }
+    }
+    isTicketChannel(channelName) {
+        return channelName.toLowerCase().includes('ticket');
+    }
+    shouldMonitorChannel(channelId, guildId) {
+        // Always monitor dynamic ticket channels
+        if (this.dynamicTicketChannels.has(channelId)) {
+            return true;
+        }
+        // Check static channel filter
+        if (this.config.channelIds && this.config.channelIds.length > 0) {
+            return this.config.channelIds.includes(channelId);
+        }
+        // Check guild filter if no specific channels configured
+        if (this.config.guildIds && this.config.guildIds.length > 0) {
+            return guildId ? this.config.guildIds.includes(guildId) : false;
+        }
+        // If no filters configured, monitor all channels
+        return true;
     }
     async handleReconnect() {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
