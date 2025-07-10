@@ -1,43 +1,48 @@
 
-const { initializeBot, getBotStatus } = require('../../dist/src/serverless');
-
 exports.handler = async (event, context) => {
   try {
-    const success = await initializeBot();
-    const status = getBotStatus();
-
-    if (success) {
+    // Basic validation of environment variables
+    const discordToken = process.env.DISCORD_TOKEN;
+    const webhookUrl = process.env.WEBHOOK_URL;
+    
+    if (!discordToken || !webhookUrl) {
       return {
-        statusCode: 200,
+        statusCode: 400,
         headers: {
           'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
         },
         body: JSON.stringify({
-          message: 'Discord bot started successfully',
-          status: 'running',
-          botStatus: status,
-          timestamp: new Date().toISOString()
-        }),
-      };
-    } else {
-      return {
-        statusCode: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: 'Failed to start Discord bot. Check environment variables.',
+          message: 'Missing required environment variables: DISCORD_TOKEN and WEBHOOK_URL',
           status: 'error',
-          botStatus: status,
           timestamp: new Date().toISOString()
         }),
       };
     }
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({
+        message: 'Discord bot configuration validated. Note: Netlify functions are stateless - use Replit for persistent bot hosting.',
+        status: 'configured',
+        environment: {
+          hasToken: !!discordToken,
+          hasWebhook: !!webhookUrl,
+          nodeVersion: process.version
+        },
+        timestamp: new Date().toISOString()
+      }),
+    };
   } catch (error) {
     return {
       statusCode: 500,
       headers: {
         'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
       },
       body: JSON.stringify({
         message: 'Internal server error',
