@@ -4,6 +4,9 @@
   "description": "A Node.js/TypeScript Discord bot that listens to messages in real-time and triggers Make.com webhooks with complete message data.",
   "main": "index.js",
   "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
