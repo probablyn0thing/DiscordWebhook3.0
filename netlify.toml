@@ -1,6 +1,7 @@
 
 [build]
   publish = "netlify/functions"
+  command = "npm install && npm run build"
 
 [build.environment]
   NODE_VERSION = "18.18.0"
